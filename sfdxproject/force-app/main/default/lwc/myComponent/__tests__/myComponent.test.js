@@ -17,14 +17,14 @@ window.fetch = jest.fn().mockImplementation(() => Promise.resolve({
   json: () => Promise.resolve(serviceResponse)
 }))
 
-describe('O componente de Produto de Cliente', () => {
+describe('My component should', () => {
   afterEach(() => {
     while (document.body.firstChild) {
       document.body.removeChild(document.body.firstChild);
     }
   });
 
-  it('Carregar Produtos', () => {
+  it('load stuff', () => {
 
     const comp = createElement('c-myComponent', {
       is: myComponent
@@ -34,7 +34,12 @@ describe('O componente de Produto de Cliente', () => {
 
     getRecordAdapter.emit({
       "Id": "001000000000000AAA",
-      "Name": "Maria"
+      "Name": "Maria",
+      "fields": {
+        "Document__c": {
+          "value": "47514723000172"
+        }
+      }
     });
 
     return Promise.resolve().then(() => {
