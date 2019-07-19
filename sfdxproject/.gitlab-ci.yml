@@ -1,0 +1,87 @@
+image:
+    name: registry.gitlab.com/cbcloud/sebastian:latest
+    entrypoint: [""]
+
+stages:
+    - Code Analysis
+    - Lightning Web Components Tests
+    - Apex Deploy and Test
+    - Deployment check
+    - Deploy to sandbox
+    - Deploy to production
+
+Code Analysis:
+    stage: Code Analysis
+    script:
+        - pmd -d force-app/main/default/classes -R assets/rulesets/default.xml
+    only:
+        - merge_requests
+
+# Roda os testes dos componentes do Lightning (apenas LWC)
+
+Run Lightning Web Components Tests:
+    stage: Lightning Web Components Tests
+    script:
+        - lwc-jest --version
+        # - scripts/lwctests.sh
+    when: always
+    dependencies:
+        - Code Analysis
+    only:
+        - canary
+        - merge_requests
+    except:
+        - qa
+        - uat
+        - master
+
+# Cria uma scratch org, faz o deploy do código do projeto e
+# roda os testes do Apex.
+
+Run Apex Tests on Scratch Org:
+    stage: Apex Deploy and Test
+    script:
+        - scripts/canarytests.sh $PRODUCTION_CONSUMER_KEY $PRODUCTION_KEY $PRODUCTION_USERNAME
+    only:
+        - canary
+    dependencies:
+        - Run Lightning Web Components Tests
+    after_script:
+        - scripts/canarytests_cleanup.sh
+
+# MERGE REQUESTS
+# Durante uma merge request, testa a implantação com a flag
+# CheckOnly = true via Metadata API
+
+Check deployment:
+    stage: Deployment check
+    dependencies:
+        - Code Analysis
+    script:
+        - "echo Merge request target: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+        - scripts/deploy.sh $CI_MERGE_REQUEST_TARGET_BRANCH_NAME "RunLocalTests" checkonly
+    only:
+        - merge_requests
+
+# IMPLANTAÇÕES
+# Durante as implantações nos ambientes de QA e UAT não rodamos
+# os testes novamente porque, teoricamente, o código já passou
+# pela validação ao passar pela merge request em Canary.
+
+Deploy to Sandbox:
+    stage: Deploy to sandbox
+    script:
+        - scripts/deploy.sh $CI_COMMIT_REF_NAME "NoTestRun" nochecks
+    only:
+        - qa
+        - uat
+
+# A exceção à política de não rodar os testes é o ambiente de
+# produção, por motivos de segurança.
+
+Deploy to Production:
+    stage: Deploy to production
+    script:
+        - scripts/deploy.sh $CI_MERGE_REQUEST_TARGET_BRANCH_NAME "RunLocalTests" nochecks
+    only:
+        - master

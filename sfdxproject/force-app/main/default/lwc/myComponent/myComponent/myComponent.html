@@ -1,0 +1,9 @@
+<template>
+    <lightning-card title="Available products" icon-name="standard:product">
+      <div slot="footer">
+        <template for:each={products} for:item="product">
+          <lightning-badge key={product.label} label={product.label} class='slds-badge_inverse'></lightning-badge>
+        </template>
+      </div>
+    </lightning-card>
+  </template>
